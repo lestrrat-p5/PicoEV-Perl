@@ -1,0 +1,39 @@
+TYPEMAP
+
+picoev_loop *   T_PICOEV_LOOP
+
+OUTPUT
+T_PICOEV_LOOP
+        /* T_PICOEV_LOOP */
+        if (!$var)          /* if null */
+            SvOK_off($arg); /* then return as undef instead of reaf to undef */
+        else {
+            /* setup $arg as a ref to a blessed hash hv */
+            HV *hv = newHV();
+            char *classname = \"PicoEV::Loop\";
+            /* take (sub)class name to use from class_sv if appropriate */
+            if (class_sv && SvOK(class_sv) && sv_derived_from(class_sv, classname))
+                classname = (SvROK(class_sv)) ? sv_reftype(class_sv, 0) : SvPV_nolen(class_sv);
+            sv_setsv($arg, sv_2mortal(newRV_noinc((SV*)hv)));
+            (void)sv_bless($arg, gv_stashpv(classname, TRUE));
+            sv_magic((SV*)hv, NULL, '~', NULL, 0);
+            mg_find(SvRV($arg), '~')->mg_obj = (void*)$var;
+        }
+
+INPUT
+T_PICOEV_LOOP
+        /* T_PICOEV_LOOP */
+        if (!SvOK($arg)) {  /* undef         */
+            $var = NULL;    /* treat as null */
+        }
+        else if (sv_derived_from($arg, \"PicoEV::Loop\")) {
+            if (SvROK($arg)) {
+                $var = (picoev_loop*) mg_find(SvRV($arg), '~')->mg_obj;
+            }
+            else { /* picoev_loop ptr already freed or is a class name */
+                $var = NULL;
+            }
+        }
+        else
+            croak(\"$var is not of type PicoEV::Loop\");
+
